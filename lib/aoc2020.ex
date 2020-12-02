@@ -33,6 +33,10 @@ defmodule Aoc2020 do
           i == j ->
             acc
 
+          # we know we'll only ever get 3 values, so once we have 3, don't calc anything else
+          length(Enum.uniq(acc.vals)) == 3 ->
+            acc
+
           # use a map to ensure we don't duplicate efforts
           Map.has_key?(acc.solved, Enum.sort([i, j])) ->
             acc
