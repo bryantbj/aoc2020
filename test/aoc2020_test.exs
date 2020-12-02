@@ -4,7 +4,6 @@ defmodule Aoc2020Test do
 
   @tag :skip
   test "1a input works" do
-    answer = File.stream!("data/1.txt") |> Aoc2020.expense_report()
-    IO.inspect(answer)
+    File.stream!("data/1.txt") |> Aoc2020.expense_report() |> IO.inspect(label: "answer")
   end
 end
