@@ -7,52 +7,44 @@ defmodule Aoc2020 do
   Takes the string +input+ and processes it.
 
   ## Examples
-  iex> ~w[1721 979 366 299 675 1456] |> Aoc2020.expense_report()
-  241861950
+  iex> ["1-3 a: abcde", "1-3 b: cdefg", "2-9 c: ccccccccc"] |> Aoc2020.run()
+  2
   """
-  def expense_report(input) do
-    input = parse_input(input)
-
-    input
-    |> find_nums()
+  def run(input) do
+    parse_input(input)
+    |> Stream.filter(&is_valid?/1)
+    |> Enum.to_list()
+    |> Enum.count()
   end
 
   def parse_input(input) do
     input
     |> Stream.map(&String.trim/1)
-    |> Stream.map(&String.to_integer/1)
+    |> Stream.map(&detect_parts/1)
   end
 
-  def find_nums(input) do
-    set = Enum.into(input, MapSet.new())
+  @doc """
+  Splits a term into its policy and password parts
 
-    Enum.reduce(input, %{vals: [], solved: %{}, input: input}, fn i, outer_acc ->
-      Enum.reduce(input, outer_acc, fn j, acc ->
-        cond do
-          # never use the same number twice in the equation
-          i == j ->
-            acc
+  ## Examples
+  iex> "1-3 a: abcde" |> Aoc2020.detect_parts()
+  {"a", 1, 3, "abcde"}
+  """
+  def detect_parts(str) do
+    [min, max, char, password] =
+      str
+      |> String.split(~r/[\s:-]/)
+      |> Enum.filter(&(String.length(&1) > 0))
 
-          # we know we'll only ever get 3 values, so once we have 3, don't calc anything else
-          length(Enum.uniq(acc.vals)) == 3 ->
-            acc
+    {char, String.to_integer(min), String.to_integer(max), password}
+  end
 
-          # use a map to ensure we don't duplicate efforts
-          Map.has_key?(acc.solved, Enum.sort([i, j])) ->
-            acc
+  def is_valid?({char, min, max, pass}) do
+    instances =
+      pass
+      |> String.graphemes()
+      |> Enum.count(&(&1 == char))
 
-          true ->
-            val = @goal - i - j
-            # add this value to the +solved+ map
-            acc = put_in(acc, [:solved], Map.put(acc.solved, Enum.sort([i, j]), val))
-
-            # is the answer a member of +input+? if so, add it to +vals+
-            (MapSet.member?(set, val) && Map.put(acc, :vals, [val | acc.vals])) || acc
-        end
-      end)
-    end)
-    |> Map.get(:vals)
-    |> Enum.uniq()
-    |> Enum.reduce(1, fn i, acc -> acc * i end)
+    Enum.member?(min..max, instances)
   end
 end
