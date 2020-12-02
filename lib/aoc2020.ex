@@ -24,6 +24,8 @@ defmodule Aoc2020 do
   end
 
   def find_nums(input) do
+    set = Enum.into(input, MapSet.new())
+
     Enum.reduce(input, %{vals: [], solved: %{}, input: input}, fn i, outer_acc ->
       Enum.reduce(input, outer_acc, fn j, acc ->
         cond do
@@ -41,7 +43,7 @@ defmodule Aoc2020 do
             acc = put_in(acc, [:solved], Map.put(acc.solved, Enum.sort([i, j]), val))
 
             # is the answer a member of +input+? if so, add it to +vals+
-            (Enum.member?(input, val) && Map.put(acc, :vals, [val | acc.vals])) || acc
+            (MapSet.member?(set, val) && Map.put(acc, :vals, [val | acc.vals])) || acc
         end
       end)
     end)
