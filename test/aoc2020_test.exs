@@ -3,7 +3,7 @@ defmodule Aoc2020Test do
   doctest Aoc2020
 
   @tag :skip
-  test "1a input works" do
+  test "input works" do
     File.stream!("data/1.txt") |> Aoc2020.expense_report() |> IO.inspect(label: "answer")
   end
 end
