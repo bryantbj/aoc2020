@@ -24,30 +24,19 @@ defmodule Aoc2020 do
   514579
   """
   def expense_report(input) do
+    goal = 2020
+
     input = parse_input(input)
 
     input
-    |> Stream.map(&add(&1, input))
-    |> Stream.filter(fn {_i, list} -> Enum.find(list, &(&1 == 2020)) end)
+    |> Stream.filter(fn i -> Enum.member?(input, goal - i) end)
     |> Enum.to_list()
-    |> select()
+    |> (fn [a, b] -> a * b end).()
   end
 
   def parse_input(input) do
     input
     |> Stream.map(&String.trim/1)
     |> Stream.map(&String.to_integer/1)
-  end
-
-  def add(int, list) do
-    {int, Enum.filter(list, &(&1 !== int)) |> Enum.map(&(&1 + int))}
-  end
-
-  def add_again(int1, {int2, list}) do
-    {int1, Enum.filter(list, &(&1 !== int1 && &1 !== int2)) |> Enum.map(&(&1 + int2))}
-  end
-
-  def select([{a, _}, {b, _}]) do
-    a * b
   end
 end
