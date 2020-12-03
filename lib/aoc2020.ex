@@ -8,7 +8,7 @@ defmodule Aoc2020 do
 
   ## Examples
   iex> ["1-3 a: abcde", "1-3 b: cdefg", "2-9 c: ccccccccc"] |> Aoc2020.run()
-  2
+  1
   """
   def run(input) do
     parse_input(input)
@@ -40,11 +40,11 @@ defmodule Aoc2020 do
   end
 
   def is_valid?({char, min, max, pass}) do
-    instances =
-      pass
-      |> String.graphemes()
-      |> Enum.count(&(&1 == char))
-
-    Enum.member?(min..max, instances)
+    [min, max]
+    |> Enum.reduce([], fn i, acc ->
+      [String.at(pass, i - 1) | acc]
+    end)
+    |> Enum.count(&(&1 == char))
+    |> Kernel.==(1)
   end
 end
