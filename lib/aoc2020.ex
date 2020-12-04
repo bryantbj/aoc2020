@@ -1,50 +1,49 @@
 defmodule Aoc2020 do
-  @goal 2020
   @moduledoc """
   Documentation for Aoc2020.
   """
+
+  @tree "#"
+
   @doc """
   Takes the string +input+ and processes it.
 
   ## Examples
-  iex> ["1-3 a: abcde", "1-3 b: cdefg", "2-9 c: ccccccccc"] |> Aoc2020.run()
-  1
+  iex> [~w[. . # # . . . . . . .],
+  iex> ~w[# . . . # . . . # . .],
+  iex> ~w[. # . . . . # . . # .],
+  iex> ~w[. . # . # . . . # . #],
+  iex> ~w[. # . . . # # . . # .],
+  iex> ~w[. . # . # # . . . . .],
+  iex> ~w[. # . # . # . . . . #],
+  iex> ~w[. # . . . . . . . . #],
+  iex> ~w[# . # # . . . # . . .],
+  iex> ~w[# . . . # # . . . . #],
+  iex> ~w[. # . . # . . . # . #]] |> Aoc2020.run()
+  7
   """
   def run(input) do
-    parse_input(input)
-    |> Stream.filter(&is_valid?/1)
-    |> Enum.to_list()
-    |> Enum.count()
-  end
+    length = get_length(Enum.at(input, 0))
 
-  def parse_input(input) do
     input
-    |> Stream.map(&String.trim/1)
-    |> Stream.map(&detect_parts/1)
+    |> Stream.map(&parse_line/1)
+    |> Stream.scan({0, %{i: 0, length: length}}, &tree?/2)
+    |> Stream.map(fn {i, _} -> i end)
+    |> Enum.reverse()
+    |> (fn [hd | _] -> hd end).()
+    |> IO.inspect()
   end
 
-  @doc """
-  Splits a term into its policy and password parts
+  def parse_line(line) when is_binary(line), do: String.trim(line) |> String.graphemes()
+  def parse_line(line), do: line
 
-  ## Examples
-  iex> "1-3 a: abcde" |> Aoc2020.detect_parts()
-  {"a", 1, 3, "abcde"}
-  """
-  def detect_parts(str) do
-    [min, max, char, password] =
-      str
-      |> String.split(~r/[\s:-]/)
-      |> Enum.filter(&(String.length(&1) > 0))
+  def get_length(line) when is_binary(line), do: String.trim(line) |> String.length()
+  def get_length(line), do: length(line)
 
-    {char, String.to_integer(min), String.to_integer(max), password}
-  end
+  def tree?(line, {list, acc}) do
+    tree = (Enum.at(line, rem(acc.i * 3, acc.length)) === @tree && 1) || 0
+    acc = Map.put(acc, :i, acc.i + 1)
 
-  def is_valid?({char, min, max, pass}) do
-    [min, max]
-    |> Enum.reduce([], fn i, acc ->
-      [String.at(pass, i - 1) | acc]
-    end)
-    |> Enum.count(&(&1 == char))
-    |> Kernel.==(1)
+    {list + tree, acc}
   end
 end
