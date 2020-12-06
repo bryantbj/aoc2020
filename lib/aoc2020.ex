@@ -4,99 +4,58 @@ defmodule Aoc2020 do
   """
   @doc """
   Takes the string +input+ and processes it.
+
+  ## Examples
+  iex>"abc
+  iex>
+  iex> a
+  iex> b
+  iex> c
+  iex>
+  iex> ab
+  iex> ac
+  iex>
+  iex> a
+  iex> a
+  iex> a
+  iex> a
+  iex>
+  iex> b" |> Aoc2020.run()
+  11
   """
   def run(input) do
     input
+    |> parse_input
+    |> map_counts
+    |> Enum.sum()
+    |> IO.inspect()
+  end
+
+  def parse_input(input) when is_binary(input) do
+    {:ok, input} = StringIO.open(input)
+
+    input
+    |> IO.binstream(:line)
+    |> parse_input()
+  end
+
+  @doc """
+  Takes input and massages it a bit. Separates records, removes empty strings, etc.
+  """
+  def parse_input(input) do
+    input
+    |> Stream.chunk_by(&String.match?(&1, ~r/^\n$/))
+    |> Stream.map(&Stream.map(&1, fn l -> String.trim(l) end))
+    |> Stream.map(&Enum.join(&1, " "))
     |> Stream.map(&String.trim/1)
-    |> Stream.map(&find_seat/1)
-    |> Enum.sort()
-    |> Enum.reverse()
-    |> find_missing_seat()
+    |> Stream.filter(&(String.length(&1) > 0))
   end
 
-  @doc """
-  Takes a string and returns the seat ID
-
-  ## Exampleso
-  iex> "FBFBBFFRLR" |> Aoc2020.find_seat()
-  357
-
-  iex> "BFFFBBFRRR" |> Aoc2020.find_seat()
-  567
-
-  iex> "FFFBBBFRRR" |> Aoc2020.find_seat()
-  119
-
-  iex> "BBFFBBFRLL" |> Aoc2020.find_seat()
-  820
-  """
-  def find_seat(str) do
-    [_, rows, columns] = Regex.scan(~r/(\w{7})(\w{3})/, str) |> List.flatten()
-
-    row = find_row(rows)
-    column = find_column(columns)
-
-    row * 8 + column
-  end
-
-  @doc """
-  Finds the row specified on the ticket
-
-  ## Examples
-  iex> Aoc2020.find_row("FBFBBFF")
-  44
-  """
-  def find_row(row) do
-    row
-    |> String.graphemes()
-    |> Enum.reduce({127, 6}, &move/2)
-    |> (fn {n, _} -> n end).()
-  end
-
-  @doc """
-  Finds the column specified on the ticket
-
-  ## Examples
-  iex> Aoc2020.find_column("RLR")
-  5
-  """
-  def find_column(columns) do
-    columns
-    |> String.graphemes()
-    |> Enum.reduce({7, 2}, &move/2)
-    |> (fn {n, _} -> n end).()
-  end
-
-  @doc """
-  Take the "front" half
-
-  ## Examples
-  iex> Aoc2020.move("F", {127, 6})
-  {63, 5}
-
-  iex> Aoc2020.move("B", {63, 5})
-  {63, 4}
-  """
-  def move("F", {previous, power}) do
-    {(previous - :math.pow(2, power)) |> round, power - 1}
-  end
-
-  # this is basically an "F" move
-  def move("L", acc), do: move("F", acc)
-
-  def move("B", {previous, power}) do
-    {previous, power - 1}
-  end
-
-  # this is basically a "B" move
-  def move("R", acc), do: move("B", acc)
-
-  def find_missing_seat(list) do
-    list
-    |> Stream.chunk_every(3, 1)
-    |> Stream.filter(fn list -> Enum.at(list, 0) - Enum.at(list, 1) !== 1 end)
-    |> Enum.to_list()
-    |> hd()
-    |> (&(hd(&1) - 1)).()
+  def map_counts(stream) do
+    stream
+    |> Stream.map(&String.graphemes/1)
+    |> Stream.map(&Enum.filter(&1, fn l -> String.match?(l, ~r/\w/) end))
+    |> Stream.map(&Enum.uniq/1)
+    |> Stream.map(&Enum.count/1)
   end
 end
