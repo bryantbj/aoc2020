@@ -2,137 +2,103 @@ defmodule Aoc2020 do
   @moduledoc """
   Documentation for Aoc2020.
   """
-
-  @required_fields ~w[byr iyr eyr hgt hcl ecl pid]
-  @valid_ecl MapSet.new(~w[amb blu brn gry grn hzl oth])
-
   @doc """
   Takes the string +input+ and processes it.
-
-  ## Examples
-  iex> "eyr:1972 cid:100
-  iex> hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926
-  iex>
-  iex> iyr:2019
-  iex> hcl:#602927 eyr:1967 hgt:170cm
-  iex> ecl:grn pid:012533040 byr:1946
-  iex>
-  iex> hcl:dab227 iyr:2012
-  iex> ecl:brn hgt:182cm pid:021572410 eyr:2020 byr:1992 cid:277
-  iex>
-  iex> hgt:59cm ecl:zzz
-  iex> eyr:2038 hcl:74454a iyr:2023
-  iex> pid:3556412378 byr:2007
-  iex>
-  iex> pid:087499704 hgt:74in ecl:grn iyr:2012 eyr:2030 byr:1980
-  iex> hcl:#623a2f
-  iex>
-  iex> eyr:2029 ecl:blu cid:129 byr:1989
-  iex> iyr:2014 pid:896056539 hcl:#a97842 hgt:165cm
-  iex>
-  iex> hcl:#888785
-  iex> hgt:164cm byr:2001 iyr:2015 cid:88
-  iex> pid:545766238 ecl:hzl
-  iex> eyr:2022
-  iex>
-  iex> iyr:2010 hgt:158cm hcl:#b6652a ecl:blu byr:1944 eyr:2021 pid:093154719
-  iex> " |> Aoc2020.run()
-  4
   """
   def run(input) do
     input
-    |> parse_input()
-    |> Stream.filter(&passport_valid?/1)
-    |> Enum.to_list()
-    |> Enum.count()
-  end
-
-  def parse_input(input) when is_binary(input) do
-    {:ok, input} = input |> StringIO.open()
-
-    input
-    |> IO.binstream(:line)
-    |> parse_input()
-  end
-
-  def parse_input(input) do
-    input
-    |> Stream.chunk_by(&String.match?(&1, ~r/^\n$/))
-    |> Stream.map(&Stream.map(&1, fn line -> String.trim(line) end))
-    |> Stream.map(&Enum.join(&1, " "))
     |> Stream.map(&String.trim/1)
-    |> Stream.filter(&(String.length(&1) > 0))
+    |> Stream.map(&find_seat/1)
+    |> Enum.sort()
+    |> Enum.reverse()
+    |> hd()
+
+    # |> find_missing_seat()
   end
 
-  def passport_valid?(line) do
-    required = has_required_fields?(line)
-    valid = fields_are_valid?(line)
+  @doc """
+  Takes a string and returns the seat ID
 
-    required && valid
+  ## Exampleso
+  iex> "FBFBBFFRLR" |> Aoc2020.find_seat()
+  357
+
+  iex> "BFFFBBFRRR" |> Aoc2020.find_seat()
+  567
+
+  iex> "FFFBBBFRRR" |> Aoc2020.find_seat()
+  119
+
+  iex> "BBFFBBFRLL" |> Aoc2020.find_seat()
+  820
+  """
+  def find_seat(str) do
+    [_, rows, columns] = Regex.scan(~r/(\w{7})(\w{3})/, str) |> List.flatten()
+
+    row = find_row(rows)
+    column = find_column(columns)
+
+    row * 8 + column
   end
 
-  def has_required_fields?(line) do
-    @required_fields
-    |> Stream.map(&String.match?(line, ~r/#{&1}/))
-    |> Enum.all?()
+  @doc """
+  Finds the row specified on the ticket
+
+  ## Examples
+  iex> Aoc2020.find_row("FBFBBFF")
+  44
+  """
+  def find_row(row) do
+    row
+    |> String.graphemes()
+    |> Enum.reduce({127, 6}, &move/2)
+    |> (fn {n, _} -> n end).()
   end
 
-  def fields_are_valid?(line) do
-    line
-    |> String.split(~r/\s/, trim: true)
-    |> Stream.filter(fn str -> Enum.member?(@required_fields, String.slice(str, 0..2)) end)
+  @doc """
+  Finds the column specified on the ticket
+
+  ## Examples
+  iex> Aoc2020.find_column("RLR")
+  5
+  """
+  def find_column(columns) do
+    columns
+    |> String.graphemes()
+    |> Enum.reduce({7, 2}, &move/2)
+    |> (fn {n, _} -> n end).()
+  end
+
+  @doc """
+  Take the "front" half
+
+  ## Examples
+  iex> Aoc2020.move("F", {127, 6})
+  {63, 5}
+
+  iex> Aoc2020.move("B", {63, 5})
+  {63, 4}
+  """
+  def move("F", {previous, power}) do
+    {(previous - :math.pow(2, power)) |> round, power - 1}
+  end
+
+  # this is basically an "F" move
+  def move("L", acc), do: move("F", acc)
+
+  def move("B", {previous, power}) do
+    {previous, power - 1}
+  end
+
+  # this is basically a "B" move
+  def move("R", acc), do: move("B", acc)
+
+  def find_missing_seat(list) do
+    list
+    |> Stream.chunk_every(3, 1)
+    |> Stream.filter(fn list -> Enum.at(list, 0) - Enum.at(list, 1) !== 1 end)
     |> Enum.to_list()
-    |> Stream.map(&field_valid?/1)
-    |> Enum.all?()
+    |> hd()
+    |> (&(Enum.at(&1, 0) - 1)).()
   end
-
-  def year_validator(val, range) do
-    [val]
-    |> Stream.filter(&(String.length(&1) == 4))
-    |> Stream.map(&(String.to_integer(&1) in range))
-    |> Enum.any?()
-  end
-
-  def field_valid?("byr:" <> val), do: year_validator(val, 1920..2002)
-  def field_valid?("iyr:" <> val), do: year_validator(val, 2010..2020)
-  def field_valid?("eyr:" <> val), do: year_validator(val, 2020..2030)
-
-  def field_valid?("hgt:" <> val) do
-    case String.match?(val, ~r/\d+(?:in|cm)/) do
-      false ->
-        false
-
-      _ ->
-        num =
-          Regex.scan(~r/\d+/, val)
-          |> List.flatten()
-          |> Enum.at(0)
-          |> (fn n -> n && String.to_integer(n) end).()
-
-        case String.match?(val, ~r/cm/) do
-          true ->
-            num in 150..193
-
-          _ ->
-            num in 59..76
-        end
-    end
-  end
-
-  def field_valid?("hcl:#" <> val) do
-    String.match?(val, ~r/[0-9a-f]{6}/)
-  end
-
-  def field_valid?("hcl:" <> _val), do: false
-
-  def field_valid?("ecl:" <> val) do
-    @valid_ecl
-    |> MapSet.member?(val)
-  end
-
-  def field_valid?("pid:" <> val) do
-    String.match?(val, ~r/^\d{9}$/)
-  end
-
-  def field_valid?("cid:" <> _val), do: true
 end
