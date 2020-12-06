@@ -21,13 +21,12 @@ defmodule Aoc2020 do
   iex> a
   iex>
   iex> b" |> Aoc2020.run()
-  11
+  6
   """
   def run(input) do
     input
     |> parse_input
     |> map_counts
-    |> Enum.sum()
     |> IO.inspect()
   end
 
@@ -54,8 +53,36 @@ defmodule Aoc2020 do
   def map_counts(stream) do
     stream
     |> Stream.map(&String.graphemes/1)
-    |> Stream.map(&Enum.filter(&1, fn l -> String.match?(l, ~r/\w/) end))
-    |> Stream.map(&Enum.uniq/1)
-    |> Stream.map(&Enum.count/1)
+    |> Stream.map(&Enum.chunk_by(&1, fn i -> String.match?(i, ~r/\w+/) end))
+    |> Stream.map(&count_unanimous_yes/1)
+    |> Enum.sum()
+  end
+
+  @doc """
+  Accepts a list of lists and counts the number of times everyone
+  in the group agreed on an answer
+
+  ## Examples
+  iex> [~w[a b c]] |> Aoc2020.count_unanimous_yes()
+  3
+
+  iex> [["a"], ["b"], ["c"]] |> Aoc2020.count_unanimous_yes()
+  0
+
+  iex> [~w[a b], ~w[a c]] |> Aoc2020.count_unanimous_yes()
+  1
+  """
+  def count_unanimous_yes(list) do
+    list = Enum.filter(list, &(Enum.join(&1, "") |> String.match?(~r/\w+/)))
+    master_list = list |> List.flatten() |> Enum.uniq() |> Enum.filter(&String.match?(&1, ~r/\w/))
+
+    Enum.reduce(master_list, MapSet.new(), fn l, set ->
+      if Enum.all?(list, &Enum.member?(&1, l)) do
+        MapSet.put(set, l)
+      else
+        set
+      end
+    end)
+    |> Enum.count()
   end
 end
