@@ -11,9 +11,7 @@ defmodule Aoc2020 do
     |> Stream.map(&find_seat/1)
     |> Enum.sort()
     |> Enum.reverse()
-    |> hd()
-
-    # |> find_missing_seat()
+    |> find_missing_seat()
   end
 
   @doc """
@@ -99,6 +97,6 @@ defmodule Aoc2020 do
     |> Stream.filter(fn list -> Enum.at(list, 0) - Enum.at(list, 1) !== 1 end)
     |> Enum.to_list()
     |> hd()
-    |> (&(Enum.at(&1, 0) - 1)).()
+    |> (&(hd(&1) - 1)).()
   end
 end
