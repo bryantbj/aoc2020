@@ -6,28 +6,43 @@ defmodule Aoc2020 do
   Takes the string +input+ and processes it.
 
   ## Examples
-  iex>"abc
-  iex>
-  iex> a
-  iex> b
-  iex> c
-  iex>
-  iex> ab
-  iex> ac
-  iex>
-  iex> a
-  iex> a
-  iex> a
-  iex> a
-  iex>
-  iex> b" |> Aoc2020.run()
-  6
+  iex> {"light red bags contain 1 bright white bag, 2 muted yellow bags.
+  iex> dark orange bags contain 3 bright white bags, 4 muted yellow bags.
+  iex> bright white bags contain 1 shiny gold bag.
+  iex> muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.
+  iex> shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
+  iex> dark olive bags contain 3 faded blue bags, 4 dotted black bags.
+  iex> vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
+  iex> faded blue bags contain no other bags.
+  iex> dotted black bags contain no other bags.", "shiny gold"} |> Aoc2020.run()
+  4
   """
-  def run(input) do
+  def run({input, bag}) do
     input
     |> parse_input
-    |> map_counts
+    |> map_stream_parts()
+    |> build_graph()
+    |> analyze_graph(bag)
     |> IO.inspect()
+
+    # |> Enum.count()
+  end
+
+  def doctest_input_run() do
+    "light red bags contain 1 bright white bag, 2 muted yellow bags.
+    dark orange bags contain 3 bright white bags, 4 muted yellow bags.
+    bright white bags contain 1 shiny gold bag.
+    muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.
+    shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
+    dark olive bags contain 3 faded blue bags, 4 dotted black bags.
+    vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
+    faded blue bags contain no other bags.
+    dotted black bags contain no other bags."
+  end
+
+  def test() do
+    {doctest_input_run(), "shiny gold"}
+    |> run()
   end
 
   def parse_input(input) when is_binary(input) do
@@ -43,46 +58,78 @@ defmodule Aoc2020 do
   """
   def parse_input(input) do
     input
-    |> Stream.chunk_by(&String.match?(&1, ~r/^\n$/))
-    |> Stream.map(&Stream.map(&1, fn l -> String.trim(l) end))
-    |> Stream.map(&Enum.join(&1, " "))
+    # |> Stream.chunk_by(&String.match?(&1, ~r/^\n$/))
+    # |> Stream.map(&Stream.map(&1, fn l -> String.trim(l) end))
+    # |> Stream.map(&Enum.join(&1, " "))
     |> Stream.map(&String.trim/1)
     |> Stream.filter(&(String.length(&1) > 0))
   end
 
-  def map_counts(stream) do
+  def map_stream_parts(stream) do
     stream
-    |> Stream.map(&String.graphemes/1)
-    |> Stream.map(&Enum.chunk_by(&1, fn i -> String.match?(i, ~r/\w+/) end))
-    |> Stream.map(&count_unanimous_yes/1)
-    |> Enum.sum()
+    |> Stream.map(&Regex.scan(~r/[\w\s]+?bags?/, &1))
+    |> Stream.map(&List.flatten/1)
+    |> Stream.map(&map_line_parts/1)
+  end
+
+  def map_line_parts(list) do
+    # Turns a given line into {key, [{bag, num}, {bag2, num}]}
+    line_to_parts = fn [key | list] ->
+      {sanitize_key(key), Enum.map(list, &relationships/1)}
+    end
+
+    list
+    |> Stream.map(&String.replace(&1, ~r/contains?/, ""))
+    |> Stream.map(&String.trim/1)
+    |> Enum.to_list()
+    |> line_to_parts.()
   end
 
   @doc """
-  Accepts a list of lists and counts the number of times everyone
-  in the group agreed on an answer
-
-  ## Examples
-  iex> [~w[a b c]] |> Aoc2020.count_unanimous_yes()
-  3
-
-  iex> [["a"], ["b"], ["c"]] |> Aoc2020.count_unanimous_yes()
-  0
-
-  iex> [~w[a b], ~w[a c]] |> Aoc2020.count_unanimous_yes()
-  1
+  iex> Aoc2020.sanitize_key("shiny gold bag")
+  "shiny gold"
   """
-  def count_unanimous_yes(list) do
-    list = Enum.filter(list, &(Enum.join(&1, "") |> String.match?(~r/\w+/)))
-    master_list = list |> List.flatten() |> Enum.uniq() |> Enum.filter(&String.match?(&1, ~r/\w/))
+  def sanitize_key(key) do
+    key |> String.split("bag") |> Enum.at(0) |> String.trim()
+  end
 
-    Enum.reduce(master_list, MapSet.new(), fn l, set ->
-      if Enum.all?(list, &Enum.member?(&1, l)) do
-        MapSet.put(set, l)
-      else
-        set
-      end
+  def relationships(line) do
+    part_regex = ~r/(\d+?)([\w\s]+)bag/
+
+    case Regex.scan(part_regex, line) |> List.flatten() do
+      [_, num, desc] ->
+        {String.trim(desc), String.to_integer(num)}
+
+      _ ->
+        nil
+    end
+  end
+
+  def build_graph(stream) do
+    stream
+    |> Stream.scan(Graph.new(), fn {key, rels}, graph ->
+      Enum.reduce(rels, graph, fn
+        {rel_key, _count}, g ->
+          Graph.add_edge(g, key, rel_key)
+
+        nil, g ->
+          g
+      end)
     end)
+    |> Enum.reverse()
+    |> hd
+  end
+
+  def list_contains_bag?(nil, _bag), do: nil
+  def list_contains_bag?({key, _}, bag), do: key == bag
+
+  def analyze_graph(graph, bag) do
+    graph
+    |> Graph.vertices()
+    |> Enum.reduce([], fn el, acc -> [Graph.get_paths(graph, el, bag) | acc] end)
+    |> Util.flatten(1)
+    |> Enum.map(&hd/1)
+    |> Enum.uniq()
     |> Enum.count()
   end
 end
