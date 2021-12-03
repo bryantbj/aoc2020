@@ -17,6 +17,15 @@ defmodule Aoc2020 do
   iex> dotted black bags contain no other bags.", "shiny gold"} |> Aoc2020.run()
   4
   """
+  def run(input \\ nil)
+
+  def run(nil) do
+    Path.expand("../data/input.txt", __DIR__)
+    |> File.read!()
+    |> (&{&1, "shiny gold"}).()
+    |> run()
+  end
+
   def run({input, bag}) do
     input
     |> parse_input
@@ -45,6 +54,30 @@ defmodule Aoc2020 do
     |> run()
   end
 
+  def run_to_build({input, bag}) do
+    input
+    |> parse_input
+    |> map_stream_parts()
+    |> build_graph()
+  end
+
+  def doctest_input_run() do
+    "light red bags contain 1 bright white bag, 2 muted yellow bags.
+    dark orange bags contain 3 bright white bags, 4 muted yellow bags.
+    bright white bags contain 1 shiny gold bag.
+    muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.
+    shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
+    dark olive bags contain 3 faded blue bags, 4 dotted black bags.
+    vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
+    faded blue bags contain no other bags.
+    dotted black bags contain no other bags."
+  end
+
+  def test() do
+    {doctest_input_run(), "shiny gold"}
+    |> run_to_build()
+  end
+
   def parse_input(input) when is_binary(input) do
     {:ok, input} = StringIO.open(input)
 
@@ -58,9 +91,6 @@ defmodule Aoc2020 do
   """
   def parse_input(input) do
     input
-    # |> Stream.chunk_by(&String.match?(&1, ~r/^\n$/))
-    # |> Stream.map(&Stream.map(&1, fn l -> String.trim(l) end))
-    # |> Stream.map(&Enum.join(&1, " "))
     |> Stream.map(&String.trim/1)
     |> Stream.filter(&(String.length(&1) > 0))
   end
